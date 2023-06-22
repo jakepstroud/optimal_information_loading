@@ -1,0 +1,44 @@
+font.family         : sans-serif
+font.sans-serif     : Arial
+font.size           : 5.5
+text.color          : black
+pdf.fonttype	    : 42
+
+figure.dpi          : 300
+figure.figsize      : 2.8, 2.05
+figure.titlesize    : 7
+
+lines.markersize    : 3
+lines.linewidth     : 1
+grid.linewidth      : 0.5
+image.cmap          : cividis
+image.origin	    : lower
+
+axes.titlesize      : 6
+axes.labelsize      : 6
+axes.linewidth      : 0.5 #0
+axes.labelcolor     : black
+
+xtick.labelsize     : 5.5   # Tick labels
+xtick.major.size    : 2.5   # major tick size in points
+xtick.minor.size    : 1.5   # minor tick size in points
+xtick.major.width   : 0.6   # major tick width in points
+xtick.minor.width   : 0.6   # minor tick width in points
+xtick.color         : black 
+
+ytick.labelsize     : 5.5   # Tick labels
+ytick.major.size    : 2.5   # major tick size in points
+ytick.minor.size    : 1.5   # minor tick size in points
+ytick.major.width   : 0.6   # major tick width in points
+ytick.minor.width   : 0.6   # minor tick width in points
+ytick.color         : black 
+
+legend.fontsize	    : 5.5
+legend.frameon      : False
+
+#Remove grid and box
+axes.grid 	    : False
+axes.facecolor      : white
+axes.edgecolor      : black
+axes.spines.right   : False
+axes.spines.top     : False
