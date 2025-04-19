@@ -18,7 +18,17 @@ purples = ['#4d004b','#810f7c','#88419d','#8c6bb1','#8c96c6','#9ebcda']
 class RNN:
     def __init__(self, N = 50,T = 2000, tau = 100, dt = 1, noise_std = 0.05, 
                  temporally_ext_inputs = False):
+        """
+        Initialize the RNN with given hyperparameters.
         
+        Parameters:
+            N (int): Number of neurons.
+            T (int): Total simulation time (ms).
+            tau (float): Time constant for the neurons (ms).
+            dt (float): Time step for the simulation (ms).
+            noise_std (float): Standard deviation of Gaussian noise in neural activities.
+            temporally_ext_inputs (bool): Use temporally extended input stimuli if True.
+        """
         self.N = N #number of neurons
         self.scale = 1/np.sqrt(self.N) #std of initial network weights
         self.T = T #length of simulation (ms)
@@ -47,6 +57,17 @@ class RNN:
     #Create linear integrator
     def create_integrator(self,num_inputs = 2,symmetric = False,
                           seed = None):
+        """
+        Create a linear RNN integrator with specific properties.
+        
+        Parameters:
+            num_inputs (int): Number of distinct input directions (cue conditions).
+            symmetric (bool): Whether to enforce symmetric connectivity matrix.
+            seed (int): Seed for reproducibility.
+            
+        Returns:
+            dict: Dictionary of RNN parameters including weights and inputs.
+        """
         np.random.seed(seed) #fix random seed if given
         
         self.num_inputs = num_inputs #number of inputs (cue conditions)
@@ -104,6 +125,15 @@ class RNN:
         
     #Grab eigenvectors and amplifying modes
     def grab_eigs_amp(self,W):
+        """
+        Compute the eigenvalues, eigenvectors, and observability Gramian of matrix W.
+
+        Parameters:
+            W (np.ndarray): Recurrent weight matrix.
+        
+        Returns:
+            tuple: Eigenvalues, eigenvectors, eigenvalues of Gramian, eigenvectors of Gramian.
+        """
         w,v = np.linalg.eig(W)
         idx = w.argsort()[::-1]
         w = w[idx];v=np.real(v[:,idx])
@@ -122,6 +152,15 @@ class RNN:
         return w,v,eigenValuesQ,eigenVectorsQ
     
     def grab_eigs_amp_lin_model(self,W):
+        """
+        Same as grab_eigs_amp, but tailored for a linear model with dimension `self.lin_N`.
+        
+        Parameters:
+            W (np.ndarray): Linear model weight matrix.
+            
+        Returns:
+            tuple: Eigenvalues, eigenvectors, eigenvalues of Gramian, eigenvectors of Gramian.
+        """
         w,v = np.linalg.eig(W)
         idx = w.argsort()[::-1]
         w = w[idx];v=np.real(v[:,idx])
@@ -141,6 +180,15 @@ class RNN:
      
     #Create numpy neural activation function
     def act_fun(self,x):
+        """
+        Apply the selected neural nonlinearity.
+
+        Parameters:
+            x (np.ndarray): Neural activity input.
+        
+        Returns:
+            np.ndarray: Output after applying the nonlinearity.
+        """
         if self.nonlinearity == 'relu':
             out = np.maximum(0,x)
         elif self.nonlinearity == 'linear':
@@ -149,6 +197,15 @@ class RNN:
     
     #Create readout nonlinearity
     def readout_nonlin(self,net_out):
+        """
+        Apply nonlinearity to the output layer.
+
+        Parameters:
+            net_out (np.ndarray): Linear output from RNN readout layer.
+        
+        Returns:
+            np.ndarray: Output after applying the selected readout nonlinearity.
+        """
         if self.readout_nonlinearity == 'softmax':
             out = softmax(net_out,axis=-2)
         elif self.readout_nonlinearity == 'linear':
@@ -157,6 +214,17 @@ class RNN:
     
     #Simulate RNN dynamics in numpy
     def run_rnn(self,params,sim_noise = None, seed = None):
+        """
+        Simulate RNN dynamics over time for each cue condition.
+        
+        Parameters:
+            params (dict): Network parameters including weights and inputs.
+            sim_noise (float or None): Override default noise level if provided.
+            seed (int or None): Seed for random number generator.
+            
+        Returns:
+            tuple: Raw states (x), firing rates (r), and network outputs.
+        """
         np.random.seed(seed) #fix random seed if given
         
         if sim_noise == None:
@@ -198,6 +266,16 @@ class RNN:
         
     #Simulate RNN dynamics in a batch in numpy
     def run_rnn_batch(self,params,seed = None):
+        """
+        Simulate RNN dynamics over a batch of inputs in parallel.
+
+        Parameters:
+            params (dict): Dictionary of RNN parameters.
+            seed (int or None): Random seed for reproducibility.
+        
+        Returns:
+            tuple: Raw states (x), firing rates (r), and outputs for each input.
+        """
         np.random.seed(seed) #fix random seed if given
         
         W = params['W']
@@ -238,6 +316,14 @@ class RNN:
         return x,r,outputs
     
     def plot_activities(self,x,cue_cond=0,n_neurons_plot=10):
+        """
+        Plot neural activity for a specific input condition.
+
+        Parameters:
+            x (np.ndarray): Raw neural activity over time.
+            cue_cond (int): Index of the cue condition to plot.
+            n_neurons_plot (int): Number of neurons to visualize.
+        """
         plt.plot(x[:,:n_neurons_plot,cue_cond])
         if self.temporally_ext_inputs:
             plt.xticks([0,500,1000,1500,2000,2500,3000],['-500','0','500','1000','1500','2000','2500'])
@@ -245,6 +331,12 @@ class RNN:
         plt.xlabel('time (ms)')
         
     def plot_outputs(self,outputs):
+        """
+        Plot RNN outputs over time for each cue condition.
+
+        Parameters:
+            outputs (np.ndarray): Output time series of the RNN.
+        """
         # if self.readout_nonlinearity == 'linear':
         #     outputs*=np.sign(outputs[-1,0,0]) #sign flip so both readouts are positive
         [plt.plot(outputs[:,i,i],clip_on=False,label='cue '+str(i+1)) for i in range(self.num_inputs)]
@@ -260,6 +352,19 @@ class RNN:
     #Initialise network parameters before training
     def initialise_params(self,num_inputs = 6,nonlinearity = 'relu',symmetric = False,
                           readout_nonlinearity = 'softmax',seed = None):
+        """
+        Initialize RNN parameters before training.
+
+        Parameters:
+            num_inputs (int): Number of distinct input directions.
+            nonlinearity (str): Type of neuron nonlinearity ('relu' or 'linear').
+            symmetric (bool): Whether the recurrent weight matrix is symmetric.
+            readout_nonlinearity (str): Nonlinearity at the output ('softmax' or 'linear').
+            seed (int or None): Seed for reproducibility.
+        
+        Returns:
+            dict: Initialized weights and inputs.
+        """
         np.random.seed(seed) #fix random seed if given        
         
         self.num_inputs = num_inputs #number of inputs (cue conditions)
@@ -286,7 +391,15 @@ class RNN:
     
     #Simulate fitted linear models dynamics
     def run_fitted_lin_model(self,params):        
+        """
+        Simulate a fitted linear model over time.
+
+        Parameters:
+            params (dict): Parameters of the linear model.
         
+        Returns:
+            tuple: Simulated state dynamics (x) and corresponding outputs.
+        """
         inputs = params['inputs']
         W = params['W']
         b = params['b']
@@ -318,6 +431,14 @@ class RNN:
     #%% Tensorflow stuff
     @tf.function
     def act_fun_tf(self,x_tf):
+        """Applies the selected nonlinearity (activation function) to the input tensor.
+
+        Args:
+            x_tf (tf.Tensor): Input tensor.
+    
+        Returns:
+            tf.Tensor: Output tensor after applying the specified activation function.
+        """
         if self.nonlinearity == 'relu':
             out = tf.nn.relu(x_tf)
         elif self.nonlinearity == 'linear':
@@ -326,15 +447,38 @@ class RNN:
     
     @tf.function
     def cost_fun(self,outputs_tf): #Cross-entropy loss
+        """Computes the cross-entropy loss from the network outputs.
+
+        Args:
+            outputs_tf (tf.Tensor): Output logits from the RNN.
+    
+        Returns:
+            tf.Tensor: Scalar loss value.
+        """
         return -tf.reduce_sum(tf.linalg.trace(tf.math.log(tf.nn.softmax(outputs_tf,axis=1))))
 
     @tf.function
     def cond(self,x_tf,t,inputs_tf,W_tf,b_tf,w_out_tf,b_out_tf,cost):
+        """Condition function for the RNN `while_loop`, checking whether to continue simulation.
+
+        Args:
+            x_tf, t, inputs_tf, W_tf, b_tf, w_out_tf, b_out_tf, cost: Loop variables.
+    
+        Returns:
+            tf.Tensor: Boolean tensor indicating whether to continue the loop.
+        """
         return tf.less(t,self.T)
     
     @tf.function
     def body(self,x_tf,t,inputs_tf,W_tf,b_tf,w_out_tf,b_out_tf,cost):
-        
+        """Body function for the RNN `while_loop`, updating state, computing output, and accumulating cost.
+
+        Args:
+            x_tf, t, inputs_tf, W_tf, b_tf, w_out_tf, b_out_tf, cost: Loop variables.
+    
+        Returns:
+            Tuple[tf.Tensor]: Updated loop variables.
+        """
         #Run rnn dynamics
         if self.temporally_ext_inputs:            
             x_tf = x_tf + self.dt_tau * (-x_tf + W_tf @ self.act_fun_tf(x_tf) + b_tf) + np.sqrt(self.dt_tau)*self.noise_std*tf.random.normal((self.batch_size,self.N,self.num_inputs),dtype=tf.float64)
@@ -364,6 +508,18 @@ class RNN:
     
     @tf.function
     def run_rnn_while(self,inputs_tf,W_tf,b_tf,w_out_tf,b_out_tf):
+        """Runs the RNN dynamics and accumulates the training cost over time using a while loop.
+
+        Args:
+            inputs_tf (tf.Tensor): Input tensor for the RNN.
+            W_tf (tf.Tensor): Recurrent weight matrix.
+            b_tf (tf.Tensor): Bias tensor.
+            w_out_tf (tf.Tensor): Output weight matrix.
+            b_out_tf (tf.Tensor): Output bias tensor.
+    
+        Returns:
+            tf.Tensor: Total training cost after the RNN run.
+        """
         cost = tf.constant(0.0,dtype=tf.float64)
         t = tf.constant(0,dtype=tf.int64)
         x_tf = tf.zeros(inputs_tf.shape,dtype=tf.float64)
@@ -379,7 +535,15 @@ class RNN:
             self.cond, self.body, (x_tf,t,inputs_tf,W_tf,b_tf,w_out_tf,b_out_tf,cost), parallel_iterations=10)
         return cost
     
-    def initialise_tf_params(self,params_init):       
+    def initialise_tf_params(self,params_init):     
+        """Initializes TensorFlow variables from a dictionary of numpy arrays.
+
+        Args:
+            params_init (dict): Dictionary containing initial values for inputs, W, b, w_out, b_out.
+    
+        Returns:
+            Tuple[tf.Variable]: Initialized TensorFlow variables for inputs, W, b, w_out, b_out.
+        """
         inputs_tf = tf.Variable(params_init['inputs'])
         W_tf = tf.Variable(params_init['W'])
         b_tf = tf.Variable(params_init['b'])
@@ -391,7 +555,24 @@ class RNN:
     def train_rnn(self,params_init,cost_type = 'just_in_time',batch_size = 10,
                   learning_rate = 0.005,l2_reg = 0.0005,cost_scale=1000,
                   n_train_steps = 2000,seed = None):
-        
+        """Train a recurrent neural network (RNN) using backpropagation through time.
+
+        Args:
+            params_init (dict): Initial parameters for the RNN, including weights and biases.
+            cost_type (str): Type of cost function to use ('cue_delay', 'just_in_time', or 'after_go_time').
+            batch_size (int): Batch size used for training.
+            learning_rate (float): Learning rate for the optimizer.
+            l2_reg (float): L2 regularization coefficient.
+            cost_scale (float): Scaling factor for the loss function.
+            n_train_steps (int): Number of training steps to run.
+            seed (int or None): Random seed for reproducibility.
+    
+        Raises:
+            Exception: If cost_type is 'after_go_time' without temporally extended inputs.
+    
+        Returns:
+            dict: Trained parameters of the RNN (weights and biases as NumPy arrays).
+        """
         tf.random.set_seed(0)
         self.cost_type = cost_type #'cue_delay','just_in_time','after_go_time'; cost function used to train the network
         self.batch_size = batch_size #batch size
@@ -442,14 +623,33 @@ class RNN:
     def fit_lin_model(self,rates,t_start=500,t_end=1500,
                   learning_rate = 0.0001,l2_reg = 1/12,
                   n_train_steps = 10000,seed = None):        
-        
+        """Fit a linear model to PCA-reduced RNN activity.
+
+        Args:
+            rates (np.ndarray): RNN firing rates with shape (trials, neurons, time).
+            t_start (int): Start time index for PCA and training.
+            t_end (int): End time index for PCA and training.
+            learning_rate (float): Learning rate for training the linear model.
+            l2_reg (float): L2 regularization coefficient.
+            n_train_steps (int): Number of training steps.
+            seed (int or None): Random seed.
+    
+        Returns:
+            dict: Trained parameters of the linear model.
+        """
         self.pca_reduction(rates,t_start,t_end)
         params_trained = self.train_rnn_lin_model(learning_rate,l2_reg,n_train_steps,seed)
         
         return params_trained
     
     def pca_reduction(self,rates,t_start,t_end):
-        
+        """Apply PCA to reduce RNN activity dimensionality for a linear model.
+
+        Args:
+            rates (np.ndarray): RNN firing rates with shape (trials, neurons, time).
+            t_start (int): Start time index for PCA.
+            t_end (int): End time index for PCA.
+        """
         self.lin_N = 20
         
         #PCA reduction
@@ -469,6 +669,11 @@ class RNN:
         self.pc_weights = pc_weights
     
     def initialise_params_lin_model(self):
+        """Initialize parameters for a linear recurrent neural network model.
+
+        Returns:
+            dict: Dictionary containing randomly initialized weights and biases.
+        """
         W = np.random.normal(0, 1/np.sqrt(self.lin_N), (self.lin_N,self.lin_N))
         b = np.random.normal(0, 1/np.sqrt(self.lin_N), (self.lin_N,self.num_inputs))
         inputs = np.random.normal(0, 1/np.sqrt(self.lin_N), (self.lin_N,self.num_inputs))
@@ -484,15 +689,50 @@ class RNN:
     
     @tf.function
     def get_cost_lin_model(self,cost_in):
+        """Compute the weighted mean squared error cost for the linear model.
+
+        Args:
+            cost_in (tf.Tensor): Predicted - target output error tensor.
+    
+        Returns:
+            tf.Tensor: Scalar cost value.
+        """
         return tf.reduce_mean(self.pc_weights_tf @ tf.pow(cost_in,2)) #tf.reduce_mean(self.pc_weights_tf @ tf.pow(cost_in,2))
 
     @tf.function
     def cond_lin_model(self,x_tf,t,inputs_tf,W_tf,b_tf,w_out_tf,cost):
+        """Condition for continuing the while loop in RNN simulation.
+
+        Args:
+            x_tf (tf.Tensor): Hidden state tensor.
+            t (tf.Tensor): Current time step.
+            inputs_tf (tf.Tensor): Input tensor.
+            W_tf (tf.Tensor): Recurrent weight matrix.
+            b_tf (tf.Tensor): Bias tensor.
+            w_out_tf (tf.Tensor): Output weight matrix.
+            cost (tf.Tensor): Accumulated cost.
+    
+        Returns:
+            tf.Tensor: Boolean tensor indicating whether to continue the loop.
+        """
         return tf.less(t,self.T_lin_model)
     
     @tf.function
     def body_lin_model(self,x_tf,t,inputs_tf,W_tf,b_tf,w_out_tf,cost):
-        
+        """Loop body function for linear RNN dynamics and cost accumulation.
+
+        Args:
+            x_tf (tf.Tensor): Hidden state tensor.
+            t (tf.Tensor): Current time step.
+            inputs_tf (tf.Tensor): Input tensor.
+            W_tf (tf.Tensor): Recurrent weight matrix.
+            b_tf (tf.Tensor): Bias tensor.
+            w_out_tf (tf.Tensor): Output weight matrix.
+            cost (tf.Tensor): Accumulated cost.
+    
+        Returns:
+            tuple: Updated state and cost tensors.
+        """
         #Run rnn dynamics
         if self.temporally_ext_inputs:            
             x_tf = x_tf + self.dt_tau * (-x_tf + W_tf @ x_tf + b_tf)
@@ -511,6 +751,17 @@ class RNN:
     
     @tf.function
     def run_rnn_while_lin_model(self,inputs_tf,W_tf,b_tf,w_out_tf):
+        """Run the linear RNN and compute the training cost.
+
+        Args:
+            inputs_tf (tf.Tensor): Input tensor.
+            W_tf (tf.Tensor): Recurrent weight matrix.
+            b_tf (tf.Tensor): Bias tensor.
+            w_out_tf (tf.Tensor): Output weight matrix.
+    
+        Returns:
+            tf.Tensor: Total cost including regularization.
+        """
         cost = tf.constant(0.0,dtype=tf.float64)
         t = tf.constant(0,dtype=tf.int64)
         
@@ -531,7 +782,15 @@ class RNN:
         
         return cost
     
-    def initialise_tf_params_lin_model(self,params_init):       
+    def initialise_tf_params_lin_model(self,params_init):  
+        """Convert initial model parameters to TensorFlow variables.
+
+        Args:
+            params_init (dict): Dictionary of NumPy arrays for model initialization.
+    
+        Returns:
+            tuple: Tuple of TensorFlow variables (inputs, W, b, w_out).
+        """
         inputs_tf = tf.Variable(params_init['inputs'])
         W_tf = tf.Variable(params_init['W'])
         b_tf = tf.Variable(params_init['b'])
@@ -542,7 +801,17 @@ class RNN:
     def train_rnn_lin_model(self,
               learning_rate = 0.0001,l2_reg = 1/12,
               n_train_steps = 10000,seed = None):
-        
+        """Train a linear RNN model using PCA-reduced RNN activity.
+
+        Args:
+            learning_rate (float): Learning rate for optimization.
+            l2_reg (float): L2 regularization coefficient.
+            n_train_steps (int): Number of training steps.
+            seed (int or None): Random seed.
+    
+        Returns:
+            dict: Trained model parameters (as NumPy arrays).
+        """
         tf.random.set_seed(0)
         self.learning_rate_lin_model = learning_rate #learning rate
         self.l2_reg_lin_model = l2_reg #stength of L2 regularisation on firing rates during training
@@ -583,7 +852,17 @@ class RNN:
     
     #%% Analysis methods
     def cross_temp_decoding(self,r_train,r_test):
-        
+        """
+        Perform cross-temporal decoding using logistic regression.
+    
+        Args:
+            r_train (ndarray): Training neural responses, shape (T, batch_size, num_inputs, N).
+            r_test (ndarray): Testing neural responses, shape (T, batch_size, num_inputs, N).
+    
+        Returns:
+            ndarray: Decoding accuracy matrix with shape (num_times, num_times),
+                     representing accuracy at different train-test time pairs.
+        """
         r_train = np.transpose(r_train,[0,1,3,2])
         r_test = np.transpose(r_test,[0,1,3,2])
         
@@ -603,7 +882,12 @@ class RNN:
         return decoding
     
     def plot_cross_temp_decoding(self,decoding):
-        
+        """
+        Plot the cross-temporal decoding matrix as a heatmap.
+    
+        Args:
+            decoding (ndarray): Matrix of decoding accuracies from cross_temp_decoding.
+        """
         im = plt.imshow(decoding,origin='lower',vmin=0,vmax=1)
         if self.temporally_ext_inputs:
             plt.xticks([0,50,100,150,200,250,300],['-500','0','500','1000','1500','2000','2500'])
@@ -625,6 +909,16 @@ class RNN:
         self.colorbar(im,'decoding accuracy')
        
     def colorbar(self,mappable,label):
+        """
+        Add a colorbar to the current plot.
+    
+        Args:
+            mappable (matplotlib.cm.ScalarMappable): The image or plot object to attach the colorbar to.
+            label (str): Label for the colorbar.
+    
+        Returns:
+            Colorbar: The matplotlib colorbar instance.
+        """
         fig = plt.gcf()
         last_axes = plt.gca()
         ax = mappable.axes
@@ -636,7 +930,16 @@ class RNN:
         return cbar
 
     def delay_decoding(self,r_train,r_test):
-        
+        """
+        Perform decoding using delay period activity to predict input identity.
+    
+        Args:
+            r_train (ndarray): Training neural responses, shape (T, batch_size, num_inputs, N).
+            r_test (ndarray): Testing neural responses, shape (T, batch_size, num_inputs, N).
+    
+        Returns:
+            ndarray: Decoding accuracy over time.
+        """
         r_train = np.transpose(r_train,[0,1,3,2])
         r_test = np.transpose(r_test,[0,1,3,2])
         
@@ -658,7 +961,12 @@ class RNN:
         return decoding
     
     def plot_delay_decoding(self,decoding):
-        
+        """
+        Plot the delay decoding accuracy over time.
+    
+        Args:
+            decoding (ndarray): Decoding accuracy values over time.
+        """
         plt.plot(decoding,clip_on=False)
         if self.temporally_ext_inputs:
             plt.xticks([0,50,100,150,200,250,300],['-500','0','500','1000','1500','2000','2500'])
@@ -674,7 +982,17 @@ class RNN:
         plt.ylabel('decoding accuracy')
     
     def overlap_modes(self,params):
-        
+        """
+        Compute the overlap of neural activity with persistent and amplifying modes over time.
+    
+        Args:
+            params (dict): Dictionary containing model parameters.
+    
+        Returns:
+            list: 
+                - overlaps (ndarray): Percent variance explained by persistent and amplifying modes.
+                - overlaps_random (ndarray): Percent variance explained by random orthogonal modes.
+        """
         n_pcs = int(self.N/4)
         step = 20
         pca = PCA(n_components=n_pcs)
@@ -714,7 +1032,12 @@ class RNN:
         return [100*overlaps,100*overlaps_random]
         
     def plot_overlaps(self,overlaps):
-        
+        """
+        Plot the variance explained by persistent, amplifying, and random modes over time.
+    
+        Args:
+            overlaps (list): Output from `overlap_modes`, containing mode overlaps and random baseline.
+        """
         plt.plot(self.overlap_times_plot,overlaps[0][:,0],'.-g',label='persistent',clip_on=False)
         plt.plot(self.overlap_times_plot,overlaps[0][:,1],'.-r',label='amplifying',clip_on=False)
         
@@ -728,7 +1051,19 @@ class RNN:
         plt.legend()
         
     def local_lin_input_modes(self,params,n_pcs = None):
-        
+        """
+        Calculate the overlap of input directions with local linearized modes.
+    
+        Args:
+            params (dict): Dictionary containing model parameters.
+            n_pcs (int, optional): Number of principal components to consider. Defaults to `num_inputs`.
+    
+        Returns:
+            list: 
+                - pers_overlap (float): Overlap with persistent modes.
+                - amp_overlap (float): Overlap with amplifying modes.
+                - rand_overlap (ndarray): Overlap with random orthogonal modes.
+        """
         inputs = params['inputs']
         if n_pcs == None:
             n_pcs = self.num_inputs
@@ -755,7 +1090,14 @@ class RNN:
         return [pers_overlap,amp_overlap,rand_overlap]
     
     def plot_input_mode_overlaps(self,pers_overlap,amp_overlap,rand_overlap):
-        
+        """
+        Plot the overlap of input directions with persistent, amplifying, and random modes.
+    
+        Args:
+            pers_overlap (float): Overlap with persistent modes.
+            amp_overlap (float): Overlap with amplifying modes.
+            rand_overlap (ndarray): Overlap values with random modes.
+        """
         plt.plot(0,pers_overlap,'.g')
         plt.plot(1,amp_overlap,'.r')
         m = np.mean(rand_overlap);s = np.std(rand_overlap)
@@ -767,13 +1109,29 @@ class RNN:
         plt.xticks([0,1,2],['persistent\nmodes','amplifying\nmodes','random\nmodes'])        
         
     def plot_top_pc_fitted_lin_model(self,params_trained_lin_model,pc=0):
-        
+        """
+        Plot the top principal component of the trained linear model and compare it with RNN outputs.
+    
+        Args:
+            params_trained_lin_model (dict): Parameters of the trained linear model.
+            pc (int, optional): Index of the principal component to plot. Defaults to 0.
+        """
         x,outputs = self.run_fitted_lin_model(params_trained_lin_model)
         [plt.plot(self.r_pc[:,pc,i],'-',color=purples[i]) for i in range(self.num_inputs)]
         [plt.plot(outputs[:,pc,i],'--',color=purples[i]) for i in range(self.num_inputs)]
 
     def overlap_modes_lin_model(self,params):
-        
+        """
+        Compute the overlap of linear model activity with persistent and amplifying modes over time.
+    
+        Args:
+            params (dict): Parameters of the fitted linear model.
+    
+        Returns:
+            list: 
+                - overlaps (ndarray): Percent variance explained by persistent and amplifying modes.
+                - overlaps_random (ndarray): Percent variance explained by random orthogonal modes.
+        """
         n_pcs = int(self.lin_N/4)
         step = 20
         pca = PCA(n_components=n_pcs)
